@@ -4,6 +4,7 @@
 @using System.Text
 @using FluentValidation
 @using Microsoft.EntityFrameworkCore
+@using SwimRadar.Components.Account
 @using SwimRadar.Components.Layout
 @using SwimRadar.Data
 @using Severity = MudBlazor.Severity
@@ -39,7 +40,7 @@
                         </MudText>
                         @foreach (var file in _model.Files?.Select(file => file.Name) ?? [])
                         {
-                            <MudChip T="string" Color="Color.Dark" Text="@file" />
+                            <MudChip T="string" Color="Color.Dark" Text="@file"/>
                         }
                     </MudPaper>
                 </ActivatorContent>
@@ -77,13 +78,24 @@
         <MudItem xs="12">
             IsValid: @_isValid - IsTouched: @_isTouched
         </MudItem>
-        <MudSelect Style="max-width: 300px;" @bind-Value="_user.Name" Label="Select fast-food" HelperText="String" Placeholder="Please Select" AdornmentIcon="@Icons.Material.Filled.Fastfood" AdornmentColor="Color.Primary">
-            @foreach (var user in ApplicationUsers)
+        <MudSelect Style="max-width: 300px;" @bind-Value="_user.Name" Label="Select fast-food" HelperText="String"
+                   Placeholder="Please Select" AdornmentIcon="@Icons.Material.Filled.Fastfood"
+                   AdornmentColor="Color.Primary">
+            @foreach (var user in _applicationUsers)
             {
                 <MudSelectItem Value="@user.Name">@user.Name</MudSelectItem>
             }
         </MudSelect>
     </MudForm>
+    <MudText Typo="Typo.h4">Upload Record</MudText>
+    <MudDataGrid Items="@UploadRecords" Filterable="false" SortMode="@SortMode.None" Groupable="false">
+        <Columns>
+            <PropertyColumn Property="x => x.FileName"/>
+            <PropertyColumn Property="x => x.FileSize"/>
+            <PropertyColumn Property="x => x.DateTime" Title="CrateTime"/>
+            <PropertyColumn Property="x => x.UploadPath" Title="Save Path"/>
+        </Columns>
+    </MudDataGrid>
 </MudStack>
 
 @code {
@@ -93,7 +105,7 @@
         public IReadOnlyList<IBrowserFile>? Files { get; set; } = new List<IBrowserFile>();
     }
 
-    private Model _model =  new();
+    private readonly Model _model = new();
     private ModelFluentValidator _validationRules;
     private MudFileUpload<IReadOnlyList<IBrowserFile>> _fileUpload;
     private bool _isValid;
@@ -101,18 +113,41 @@
     private const string FileContent = "this is content";
     private const string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full";
     private string _dragClass = DefaultDragClass;
-    private List<ApplicationUser> ApplicationUsers;
+    private List<ApplicationUser>? _applicationUsers;
 
-    [Inject] 
+    [Inject]
     private ApplicationDbContext Context { get; set; }
 
-    public ApplicationUser _user { get; set; }
-    protected override void OnInitialized()
+    [Inject]
+    private IdentityUserAccessor UserAccessor { get; set; }
+
+    private ApplicationUser? _user { get; set; }
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [Inject]
+    private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+
+    public IEnumerable<UploadRecord> UploadRecords;
+
+    protected override async Task OnInitializedAsync()
     {
-        ApplicationUsers = Context!.Users.ToList();
-        _user = ApplicationUsers.First();
+        await base.OnInitializedAsync();
+
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _applicationUsers = Context!.Users.ToList();
+        if (_applicationUsers.Any() && authState.User.Identity is { IsAuthenticated: true })
+        {
+            _user = _applicationUsers.FirstOrDefault(x => x.UserName == authState.User.Identity.Name);
+        }
+        else
+        {
+            _user = _applicationUsers.First();
+        }
+
         _validationRules = new ModelFluentValidator(Context);
-        base.OnInitialized();
+        UploadRecords = await Context.UploadRecords.ToListAsync();
     }
 
     private async Task Upload()
@@ -120,26 +155,27 @@
         // Upload the files here
         foreach (IBrowserFile fileUploadFile in _fileUpload.Files)
         {
-                await using Stream openReadStream = fileUploadFile.OpenReadStream();
-                var directory = $"/Data/{_user.Name?.ToLower(CultureInfo.CurrentCulture)}";
-                var path = Path.Combine(directory, fileUploadFile.Name);
-                if (!Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-                FileStream fileStream = File.Create(path);
-                await openReadStream.CopyToAsync(fileStream);
-                fileStream.Close();
-                
-                Context.UploadRecords.Add(new UploadRecord()
-                {
-                    DateTime = DateTime.Now,
-                    FileName = fileUploadFile.Name,
-                    FileSize = fileUploadFile.Size,
-                    Id = Guid.NewGuid(),
-                    UploadPath = path,
-                });
-                await Context.SaveChangesAsync();
+            await using Stream openReadStream = fileUploadFile.OpenReadStream();
+            var directory = $"/Data/{_user.Name?.ToLower(CultureInfo.CurrentCulture)}";
+            var path = Path.Combine(directory, fileUploadFile.Name);
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            FileStream fileStream = File.Create(path);
+            await openReadStream.CopyToAsync(fileStream);
+            fileStream.Close();
+
+            Context.UploadRecords.Add(new UploadRecord()
+            {
+                DateTime = DateTime.Now,
+                FileName = fileUploadFile.Name,
+                FileSize = fileUploadFile.Size,
+                Id = Guid.NewGuid(),
+                UploadPath = path,
+            });
+            await Context.SaveChangesAsync();
         }
 
         await _fileUpload.ClearAsync();
@@ -169,6 +205,7 @@
                 {
                     return;
                 }
+
                 StringBuilder error = new StringBuilder();
                 foreach (IBrowserFile browserFile in model)
                 {
@@ -184,7 +221,6 @@
                     context.AddFailure(errorMessage);
                 }
             });
-
         }
 
         public Func<object, string, Task<IEnumerable<string>>> ValidateValue => async (model, propertyName) =>
@@ -193,4 +229,5 @@
             return result.IsValid ? Array.Empty<string>() : result.Errors.Select(e => e.ErrorMessage);
         };
     }
+
 }

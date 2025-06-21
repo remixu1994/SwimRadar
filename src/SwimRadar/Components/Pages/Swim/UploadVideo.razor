@@ -91,7 +91,7 @@
     <MudDataGrid Items="@UploadRecords" Filterable="false" SortMode="@SortMode.None" Groupable="false">
         <Columns>
             <PropertyColumn Property="x => x.FileName"/>
-            <PropertyColumn Property="x => x.FileSize"/>
+            <PropertyColumn Property="x => x.FileSize" />
             <PropertyColumn Property="x => x.DateTime" Title="CrateTime"/>
             <PropertyColumn Property="x => x.UploadPath" Title="Save Path"/>
         </Columns>
@@ -152,12 +152,18 @@
 
     private async Task Upload()
     {
+        if (_user == null)
+        {
+            Snackbar.Add("please login first.", Severity.Error);
+            return;
+        }
+        
         // Upload the files here
-        foreach (IBrowserFile fileUploadFile in _fileUpload.Files)
+        foreach (IBrowserFile fileUploadFile in _fileUpload.Files!)
         {
             await using Stream openReadStream = fileUploadFile.OpenReadStream();
             var directory = $"/Data/{_user.Name?.ToLower(CultureInfo.CurrentCulture)}";
-            var path = Path.Combine(directory, fileUploadFile.Name);
+            var path = Path.Combine(directory, fileUploadFile.Name).Replace("\\", "/");
             if (!Directory.Exists(directory))
             {
                 Directory.CreateDirectory(directory);
@@ -176,6 +182,17 @@
                 UploadPath = path,
             });
             await Context.SaveChangesAsync();
+            
+            // 创建 SwimVideo 对象
+            var swimVideo = new SwimVideo
+            {
+                FileName = fileUploadFile.Name,
+                FileSize = fileUploadFile.Size,
+                FilePath = path
+            };
+
+            // 添加到数据库
+            Context.SwimVideos.Add(swimVideo);
         }
 
         await _fileUpload.ClearAsync();
@@ -226,7 +243,7 @@
         public Func<object, string, Task<IEnumerable<string>>> ValidateValue => async (model, propertyName) =>
         {
             var result = await ValidateAsync(ValidationContext<Model>.CreateWithOptions((Model)model, x => x.IncludeProperties(propertyName)));
-            return result.IsValid ? Array.Empty<string>() : result.Errors.Select(e => e.ErrorMessage);
+            return result.IsValid ? [] : result.Errors.Select(e => e.ErrorMessage);
         };
     }
 

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using MudBlazor.Services;
 using SwimRadar.Components;
 using SwimRadar.Components.Account;
@@ -37,7 +38,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
     .AddDefaultTokenProviders();
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
-
+builder.Services.AddTransient<IVideoService, VideoService>();
 var app = builder.Build();
 
 // // Configure the HTTP request pipeline.
@@ -60,6 +61,12 @@ app.UseMigrationsEndPoint();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider("/Data"),
+    RequestPath = "/video" // 设置访问这些文件的请求路径前缀
+});
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

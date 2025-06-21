@@ -8,8 +8,10 @@
         <MudDivider Class="my-2"/>
         <AuthorizeView>
             <Authorized>
-                <MudNavLink Href="/swim/upload">Swim Upload</MudNavLink>
-                
+                <MudNavGroup Title="Swim" Expanded="true">
+                    <MudNavLink Href="/swim/upload">Swim Upload</MudNavLink>
+                    <MudNavLink Href="/swim/videos">Swim Video</MudNavLink>
+                </MudNavGroup>
                 <MudNavLink class="nav-link" href="Account/Manage"> @context.User.Identity?.Name</MudNavLink>
                 <div class="nav-item px-3">
                     <form action="Account/Logout" method="post">

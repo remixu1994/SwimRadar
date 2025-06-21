@@ -7,4 +7,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<UploadRecord> UploadRecords { get; set; }
+    
+    public DbSet<SwimVideo?> SwimVideos { get; set; }
 }

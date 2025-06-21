@@ -1,5 +1,81 @@
-﻿<h3>Video</h3>
+﻿@page "/swim/videos"
+@using SwimRadar.Data
+@inject IVideoService VideoService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<MudButton Variant="Variant.Filled" DropShadow="false" Color="Color.Primary" OnClick="Sync">Sync</MudButton>
+<MudDataGrid T="SwimVideo" Items="@_videos" Filterable="false" SortMode="@SortMode.None" Groupable="false"
+             EditMode="DataGridEditMode.Form" EditTrigger="DataGridEditTrigger.Manual" ReadOnly="false"
+             StartedEditingItem="@StartedEditingItem" CanceledEditingItem="@CanceledEditingItem"
+             CommittedItemChanges="@CommittedItemChanges">
+    <Columns>
+        <PropertyColumn Property="x => x.FileName" Title="File Name"/>
+        <PropertyColumn Property="x => x.FileSize" Title="File Size" Editable="false"/>
+        <TemplateColumn Title="Save Path" CellClass="d-flex justify-start">
+            <CellTemplate Context="video">
+                <MudText>@video.Item.FilePath</MudText>
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.LocalPlay"
+                               OnClick="@(async () => await PlayVideo(video.Item.FilePath))"/>
+            </CellTemplate>
+        </TemplateColumn>
+        <PropertyColumn Property="x => x.Description" Title="Descrption"/>
+        <TemplateColumn CellClass="d-flex justify-end">
+            <CellTemplate>
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit"
+                               OnClick="@context.Actions.StartEditingItemAsync"/>
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Delete"
+                               OnClick="@(async () => await DeleteItemAsync(context.Item))"/>
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
 
 @code {
-    
+    private List<SwimVideo?> _videos = [];
+    private string? _path;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _videos = await VideoService.GetVideosAsync();
+    }
+
+    private async Task Sync(MouseEventArgs arg)
+    {
+        await VideoService.SyncVideoInfo(Const.SunPath);
+        await VideoService.SyncVideoInfo(Const.MoonPath);
+    }
+
+    private async Task DeleteItemAsync(SwimVideo video)
+    {
+        await VideoService.DeleteAsync(video.Id);
+    }
+
+    // events
+    void StartedEditingItem(SwimVideo item)
+    {
+    }
+
+    void CanceledEditingItem(SwimVideo item)
+    {
+    }
+
+    async void CommittedItemChanges(SwimVideo item)
+    {
+        await VideoService.UpdateVideo(item);
+    }
+
+    private async Task<object> HandleDelete(SwimVideo contextItem)
+    {
+        throw new NotImplementedException();
+    }
+
+    private async Task PlayVideo(string filePath)
+    {
+        // // 打开新窗口并播放视频
+        _path = NavigationManager.BaseUri + "video/" + filePath.Replace(@"E:\Data\", "").Replace("/Data/", "").Replace("\\", "/");
+        NavigationManager.NavigateTo($"/play?path={Uri.EscapeDataString(_path)}", forceLoad: true);
+        await InvokeAsync(StateHasChanged);
+    }
+
 }

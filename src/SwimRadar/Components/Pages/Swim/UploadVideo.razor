@@ -10,6 +10,7 @@
 @using Severity = MudBlazor.Severity
 @inject ISnackbar Snackbar
 
+<OverlayProgress Loading="@_loading"></OverlayProgress>
 <MudStack Style="width: 100%">
     <MudForm Model="@_model"
              @bind-IsValid="_isValid"
@@ -86,12 +87,13 @@
                 <MudSelectItem Value="@user.Name">@user.Name</MudSelectItem>
             }
         </MudSelect>
+        <MudText>@UploadDescription</MudText>
     </MudForm>
     <MudText Typo="Typo.h4">Upload Record</MudText>
     <MudDataGrid Items="@UploadRecords" Filterable="false" SortMode="@SortMode.None" Groupable="false">
         <Columns>
             <PropertyColumn Property="x => x.FileName"/>
-            <PropertyColumn Property="x => x.FileSize" />
+            <PropertyColumn Property="x => x.FileSize"/>
             <PropertyColumn Property="x => x.DateTime" Title="CrateTime"/>
             <PropertyColumn Property="x => x.UploadPath" Title="Save Path"/>
         </Columns>
@@ -130,6 +132,8 @@
     private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
 
     public IEnumerable<UploadRecord> UploadRecords;
+    private bool _loading = false;
+    private string UploadDescription = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -148,6 +152,7 @@
 
         _validationRules = new ModelFluentValidator(Context);
         UploadRecords = await Context.UploadRecords.ToListAsync();
+        UploadDescription = "Upload Description:";
     }
 
     private async Task Upload()
@@ -157,11 +162,13 @@
             Snackbar.Add("please login first.", Severity.Error);
             return;
         }
-        
+
+        _loading = true;
         // Upload the files here
         foreach (IBrowserFile fileUploadFile in _fileUpload.Files!)
         {
-            await using Stream openReadStream = fileUploadFile.OpenReadStream();
+            UploadDescription = $"Start upload :{fileUploadFile.Name}, FileSize:{fileUploadFile.Size}";
+            await using Stream openReadStream = fileUploadFile.OpenReadStream(maxAllowedSize: 10_000_000_000);
             var directory = $"/Data/{_user.Name?.ToLower(CultureInfo.CurrentCulture)}";
             var path = Path.Combine(directory, fileUploadFile.Name).Replace("\\", "/");
             if (!Directory.Exists(directory))
@@ -182,7 +189,7 @@
                 UploadPath = path,
             });
             await Context.SaveChangesAsync();
-            
+
             // 创建 SwimVideo 对象
             var swimVideo = new SwimVideo
             {
@@ -198,6 +205,10 @@
         await _fileUpload.ClearAsync();
         Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
         Snackbar.Add("Uploaded successfully", Severity.Success);
+        UploadRecords = await Context.UploadRecords.ToListAsync();
+        await InvokeAsync(StateHasChanged);
+        _loading = false;
+        UploadDescription = "";
     }
 
     private void SetDragClass()

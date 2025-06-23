@@ -65,7 +65,7 @@ app.UseStaticFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider("/Data"),
-    RequestPath = "/video" // 设置访问这些文件的请求路径前缀
+    RequestPath = "/video" 
 });
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

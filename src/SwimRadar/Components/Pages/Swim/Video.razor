@@ -65,15 +65,10 @@
         await VideoService.UpdateVideo(item);
     }
 
-    private async Task<object> HandleDelete(SwimVideo contextItem)
-    {
-        throw new NotImplementedException();
-    }
-
     private async Task PlayVideo(string filePath)
     {
-        // // 打开新窗口并播放视频
-        _path = NavigationManager.BaseUri + "video/" + filePath.Replace(@"E:\Data\", "").Replace("/Data/", "").Replace("\\", "/");
+        // 打开新窗口并播放视频
+        _path = NavigationManager.BaseUri + "video/" + filePath.Replace(@"E:\Data\", "").Replace(@"D:\Data\","").Replace("/Data/", "").Replace("\\", "/");
         NavigationManager.NavigateTo($"/play?path={Uri.EscapeDataString(_path)}", forceLoad: true);
         await InvokeAsync(StateHasChanged);
     }

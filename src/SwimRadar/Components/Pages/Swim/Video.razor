@@ -12,20 +12,18 @@
     <Columns>
         <PropertyColumn Property="x => x.FileName" Title="File Name"/>
         <PropertyColumn Property="x => x.FileSize" Title="File Size" Editable="false"/>
-        <TemplateColumn Title="Save Path" CellClass="d-flex justify-start">
-            <CellTemplate Context="video">
-                <MudText>@video.Item.FilePath</MudText>
-                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.LocalPlay"
-                               OnClick="@(async () => await PlayVideo(video.Item.FilePath))"/>
-            </CellTemplate>
-        </TemplateColumn>
-        <PropertyColumn Property="x => x.Description" Title="Descrption"/>
-        <TemplateColumn CellClass="d-flex justify-end">
+        <PropertyColumn Property="x => x.FilePath" Title="Save Path" Editable="false"/>
+        <PropertyColumn Property="x => x.Description" Title="Description"/>
+        <TemplateColumn >
             <CellTemplate>
-                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit"
-                               OnClick="@context.Actions.StartEditingItemAsync"/>
-                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Delete"
-                               OnClick="@(async () => await DeleteItemAsync(context.Item))"/>
+                <MudStack Row>
+                    <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit"
+                                   OnClick="@context.Actions.StartEditingItemAsync"/>
+                    <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Delete"
+                                   OnClick="@(async () => await DeleteItemAsync(context.Item))"/>
+                    <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.LocalPlay"
+                                   OnClick="@(async () => await PlayVideo(context.Item.FilePath))"/>
+                </MudStack>
             </CellTemplate>
         </TemplateColumn>
     </Columns>

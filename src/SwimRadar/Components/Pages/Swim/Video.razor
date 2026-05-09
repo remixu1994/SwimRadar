@@ -13,8 +13,15 @@
         <PropertyColumn Property="x => x.FileName" Title="File Name"/>
         <PropertyColumn Property="x => x.FileSize" Title="File Size" Editable="false"/>
         <PropertyColumn Property="x => x.FilePath" Title="Save Path" Editable="false"/>
+        <TemplateColumn Title="Preview">
+            <CellTemplate Context="video">
+                <MudChip T="string" Size="Size.Small" Color="@GetPreviewColor(video.Item.PreviewStatus)">
+                    @video.Item.PreviewStatus
+                </MudChip>
+            </CellTemplate>
+        </TemplateColumn>
         <PropertyColumn Property="x => x.Description" Title="Description"/>
-        <TemplateColumn >
+        <TemplateColumn CellClass="d-flex justify-end">
             <CellTemplate>
                 <MudStack Row>
                     <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit"
@@ -22,7 +29,7 @@
                     <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Delete"
                                    OnClick="@(async () => await DeleteItemAsync(context.Item))"/>
                     <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.LocalPlay"
-                                   OnClick="@(async () => await PlayVideo(context.Item.FilePath))"/>
+                                   OnClick="@(() => PlayVideo(context.Item.Id))"/>
                 </MudStack>
             </CellTemplate>
         </TemplateColumn>
@@ -30,8 +37,7 @@
 </MudDataGrid>
 
 @code {
-    private List<SwimVideo?> _videos = [];
-    private string? _path;
+    private List<SwimVideo> _videos = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -63,12 +69,20 @@
         await VideoService.UpdateVideo(item);
     }
 
-    private async Task PlayVideo(string filePath)
+    private void PlayVideo(Guid id)
     {
-        // 打开新窗口并播放视频
-        _path = NavigationManager.BaseUri + "video/" + filePath.Replace(@"E:\Data\", "").Replace(@"D:\Data\","").Replace("/Data/", "").Replace("\\", "/");
-        NavigationManager.NavigateTo($"/play?path={Uri.EscapeDataString(_path)}", forceLoad: true);
-        await InvokeAsync(StateHasChanged);
+        NavigationManager.NavigateTo($"/play/{id}", forceLoad: true);
+    }
+
+    private static Color GetPreviewColor(VideoPreviewStatus status)
+    {
+        return status switch
+        {
+            VideoPreviewStatus.Ready => Color.Success,
+            VideoPreviewStatus.Processing => Color.Info,
+            VideoPreviewStatus.Failed => Color.Error,
+            _ => Color.Default
+        };
     }
 
 }

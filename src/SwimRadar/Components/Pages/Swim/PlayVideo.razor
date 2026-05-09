@@ -1,26 +1,100 @@
-﻿@page "/play"
-@using System.Net
-@using Microsoft.AspNetCore.WebUtilities
-<video width="100%" controls autoplay name="media">
-    <source src="@path" type="video/mp4">
-    Your browser does not support the video tag.
-</video>
+@page "/play/{Id:guid}"
+@using SwimRadar.Data
+@inject IVideoService VideoService
 
+<PageTitle>@(_video?.FileName ?? "Video Preview")</PageTitle>
 
-@code {
-
-    [SupplyParameterFromQuery]
-    [Parameter]
-    public string? path { get; set; }
-
-    private string? VideoPath;
-
-    protected override void OnParametersSet()
+<MudStack Spacing="3" Class="pa-4">
+    @if (_video is null)
     {
-        if (!string.IsNullOrEmpty(path))
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled">Video not found.</MudAlert>
+    }
+    else
+    {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <div>
+                <MudText Typo="Typo.h5">@_video.FileName</MudText>
+                @if (!string.IsNullOrWhiteSpace(_video.Description))
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@_video.Description</MudText>
+                }
+            </div>
+            <MudChip T="string" Color="@PreviewChipColor" Variant="Variant.Filled">@PreviewStatusText</MudChip>
+        </MudStack>
+
+        @if (_isReady)
         {
-            VideoPath = WebUtility.UrlDecode(path);
+            <video class="swim-video-player" controls autoplay preload="metadata">
+                <source src="@PreviewUrl" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        }
+        else if (_isProcessing)
+        {
+            <MudPaper Outlined="true" Class="pa-6 d-flex flex-column align-center gap-3">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary"/>
+                <MudText Typo="Typo.body1">Preparing low-bandwidth preview...</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">This happens once for each video.</MudText>
+            </MudPaper>
+        }
+        else if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_errorMessage</MudAlert>
         }
     }
+</MudStack>
 
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private SwimVideo? _video;
+    private bool _isProcessing;
+    private bool _isReady;
+    private string? _errorMessage;
+
+    private string PreviewUrl => $"/video/preview/{Id}";
+
+    private Color PreviewChipColor => _video?.PreviewStatus switch
+    {
+        VideoPreviewStatus.Ready => Color.Success,
+        VideoPreviewStatus.Processing => Color.Info,
+        VideoPreviewStatus.Failed => Color.Error,
+        _ => Color.Default
+    };
+
+    private string PreviewStatusText => _video?.PreviewStatus switch
+    {
+        VideoPreviewStatus.Ready => "Ready",
+        VideoPreviewStatus.Processing => "Processing",
+        VideoPreviewStatus.Failed => "Failed",
+        _ => "Pending"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _video = await VideoService.GetVideoAsync(Id);
+        _isReady = _video?.PreviewStatus == VideoPreviewStatus.Ready &&
+                   !string.IsNullOrWhiteSpace(_video.PreviewFilePath) &&
+                   File.Exists(_video.PreviewFilePath);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _video is null || _isReady)
+        {
+            return;
+        }
+
+        _isProcessing = true;
+        await InvokeAsync(StateHasChanged);
+
+        VideoPreviewResult previewResult = await VideoService.EnsurePreviewAsync(Id);
+        _video = await VideoService.GetVideoAsync(Id);
+        _isProcessing = false;
+        _isReady = previewResult.Success;
+        _errorMessage = previewResult.Success ? null : previewResult.ErrorMessage ?? "Preview generation failed.";
+
+        await InvokeAsync(StateHasChanged);
+    }
 }

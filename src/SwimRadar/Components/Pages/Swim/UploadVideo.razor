@@ -195,13 +195,15 @@
             {
                 FileName = fileUploadFile.Name,
                 FileSize = fileUploadFile.Size,
-                FilePath = path
+                FilePath = path,
+                PreviewStatus = VideoPreviewStatus.Pending
             };
 
             // 添加到数据库
             Context.SwimVideos.Add(swimVideo);
         }
 
+        await Context.SaveChangesAsync();
         await _fileUpload.ClearAsync();
         Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
         Snackbar.Add("Uploaded successfully", Severity.Success);

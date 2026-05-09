@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileProviders;
 using MudBlazor.Services;
 using SwimRadar.Components;
 using SwimRadar.Components.Account;
@@ -56,17 +55,31 @@ var app = builder.Build();
 // app.UseHttpsRedirection();
 app.UseMigrationsEndPoint();
 
-
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.UseStaticFiles();
-app.UseStaticFiles(new StaticFileOptions
+
+app.MapGet("/video/preview/{id:guid}", async Task<IResult> (Guid id, IVideoService videoService) =>
 {
-    FileProvider = new PhysicalFileProvider("/Data"),
-    RequestPath = "/video" 
-});
+    SwimVideo? video = await videoService.GetVideoAsync(id);
+    if (video is null ||
+        video.PreviewStatus != VideoPreviewStatus.Ready ||
+        string.IsNullOrWhiteSpace(video.PreviewFilePath) ||
+        !File.Exists(video.PreviewFilePath))
+    {
+        return Results.NotFound();
+    }
+
+    return Results.File(
+        video.PreviewFilePath,
+        contentType: "video/mp4",
+        enableRangeProcessing: true);
+}).RequireAuthorization();
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

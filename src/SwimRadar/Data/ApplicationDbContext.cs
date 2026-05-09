@@ -8,5 +8,5 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
     public DbSet<UploadRecord> UploadRecords { get; set; }
     
-    public DbSet<SwimVideo?> SwimVideos { get; set; }
+    public DbSet<SwimVideo> SwimVideos { get; set; }
 }

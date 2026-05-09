@@ -15,4 +15,8 @@ public class SwimVideo
     public string FileName { get; set; }
     public long FileSize { get; set; }
     public string FilePath { get; set; }
+    public string? PreviewFilePath { get; set; }
+    public VideoPreviewStatus PreviewStatus { get; set; } = VideoPreviewStatus.Pending;
+    public DateTime? PreviewGeneratedAt { get; set; }
+    public string? PreviewError { get; set; }
 }
